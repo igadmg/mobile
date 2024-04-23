@@ -24,7 +24,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func goAndroidBuild(pkg *packages.Package, targets []targetInfo) (map[string]bool, error) {
+func goAndroidBuild(pkg *packages.Package, bundleID string, targets []targetInfo) (map[string]bool, error) {
 	binres.MinSDK = buildAndroidAPI
 	ndkRoot, err := ndkRoot(targets...)
 	if err != nil {
@@ -48,7 +48,7 @@ func goAndroidBuild(pkg *packages.Package, targets []targetInfo) (map[string]boo
 		buf.WriteString(`<?xml version="1.0" encoding="utf-8"?>`)
 		err := manifestTmpl.Execute(buf, manifestTmplData{
 			// TODO(crawshaw): a better package path.
-			JavaPkgPath: "org.golang.todo." + libName,
+			JavaPkgPath: bundleID,
 			Name:        strings.Title(appName),
 			LibName:     libName,
 		})

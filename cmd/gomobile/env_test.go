@@ -13,7 +13,7 @@ import (
 )
 
 func TestNdkRoot(t *testing.T) {
-	home, err := ioutil.TempDir("", "gomobile-test-")
+	home, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "gomobile-test-")
 	if err != nil {
 		t.Fatal(err)
 	}

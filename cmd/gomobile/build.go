@@ -138,7 +138,10 @@ func runBuildImpl(cmd *command) (*packages.Package, error) {
 			}
 			return pkg, nil
 		}
-		nmpkgs, err = goAndroidBuild(pkg, targets)
+		if buildBundleID == "" {
+			return nil, fmt.Errorf("-target=%s requires -bundleid set", buildTarget)
+		}
+		nmpkgs, err = goAndroidBuild(pkg, buildBundleID, targets)
 		if err != nil {
 			return nil, err
 		}

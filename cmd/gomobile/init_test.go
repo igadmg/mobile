@@ -40,7 +40,7 @@ func TestInit(t *testing.T) {
 
 	// Test that first GOPATH element is chosen correctly.
 	var err error
-	gopath, err = ioutil.TempDir("", "gomobile-test")
+	gopath, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "gomobile-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestInit(t *testing.T) {
 		os.Setenv("HOMEDRIVE", "C:")
 	}
 
-	emptymod, err := ioutil.TempDir("", "gomobile-test")
+	emptymod, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "gomobile-test")
 	if err != nil {
 		t.Fatal(err)
 	}
