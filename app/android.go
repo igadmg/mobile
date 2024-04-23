@@ -143,6 +143,7 @@ func onWindowFocusChanged(activity *C.ANativeActivity, hasFocus C.int) {
 
 //export onNativeWindowCreated
 func onNativeWindowCreated(activity *C.ANativeActivity, window *C.ANativeWindow) {
+	windowCreated <- window
 }
 
 //export onNativeWindowRedrawNeeded
@@ -253,6 +254,7 @@ func onLowMemory(activity *C.ANativeActivity) {
 var (
 	inputQueue         = make(chan *C.AInputQueue)
 	inputQueueDone     = make(chan struct{})
+	windowCreated      = make(chan *C.ANativeWindow)
 	windowDestroyed    = make(chan *C.ANativeWindow)
 	windowRedrawNeeded = make(chan *C.ANativeWindow)
 	windowRedrawDone   = make(chan struct{})
@@ -305,11 +307,6 @@ func mainUI(vm, jniEnv, ctx uintptr) error {
 			pixelsPerPt = cfg.pixelsPerPt
 			orientation = cfg.orientation
 		case w := <-windowRedrawNeeded:
-			if C.surface == nil {
-				if errStr := C.createEGLSurface(w); errStr != nil {
-					return fmt.Errorf("%s (%s)", C.GoString(errStr), eglGetError())
-				}
-			}
 			theApp.sendLifecycle(lifecycle.StageFocused)
 			widthPx := int(C.ANativeWindow_getWidth(w))
 			heightPx := int(C.ANativeWindow_getHeight(w))
@@ -322,14 +319,21 @@ func mainUI(vm, jniEnv, ctx uintptr) error {
 				Orientation: orientation,
 			}
 			theApp.eventsIn <- paint.Event{External: true}
+		case w := <-windowCreated:
+			if C.surface == nil {
+				if errStr := C.createEGLSurface(w); errStr != nil {
+					return fmt.Errorf("%s (%s)", C.GoString(errStr), eglGetError())
+				}
+			}
+			theApp.sendLifecycle(lifecycle.StageAlive)
 		case <-windowDestroyed:
+			theApp.sendLifecycle(lifecycle.StageDead)
 			if C.surface != nil {
 				if errStr := C.destroyEGLSurface(); errStr != nil {
 					return fmt.Errorf("%s (%s)", C.GoString(errStr), eglGetError())
 				}
 			}
 			C.surface = nil
-			theApp.sendLifecycle(lifecycle.StageAlive)
 		case <-workAvailable:
 			theApp.worker.DoWork()
 		case <-theApp.publish:
@@ -365,7 +369,8 @@ func runInputQueue(vm, jniEnv, ctx uintptr) error {
 
 	var q *C.AInputQueue
 	for {
-		if C.ALooper_pollOnce(-1, nil, nil, nil) == C.ALOOPER_POLL_WAKE {
+		lp := C.ALooper_pollOnce(-1, nil, nil, nil)
+		if lp == C.ALOOPER_POLL_WAKE {
 			select {
 			default:
 			case p := <-pending:
@@ -379,9 +384,10 @@ func runInputQueue(vm, jniEnv, ctx uintptr) error {
 				}
 				inputQueueDone <- struct{}{}
 			}
-		}
-		if q != nil {
-			processEvents(env, q)
+		} else if lp != C.ALOOPER_POLL_CALLBACK {
+			if q != nil {
+				processEvents(env, q)
+			}
 		}
 	}
 }
