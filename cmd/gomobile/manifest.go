@@ -57,14 +57,13 @@ type manifestTmplData struct {
 var manifestTmpl = template.Must(template.New("manifest").Parse(`
 <manifest
 	xmlns:android="http://schemas.android.com/apk/res/android"
-	package="{{.JavaPkgPath}}"
-	android:versionCode="1"
-	android:versionName="1.0">
+	package="{{.JavaPkgPath}}">
 
 	<application android:label="{{.Name}}" android:debuggable="true">
 	<activity android:name="org.golang.app.GoNativeActivity"
+		android:exported="true"
 		android:label="{{.Name}}"
-		android:configChanges="orientation|keyboardHidden">
+		android:configChanges="orientation|keyboardHidden|screenSize">
 		<meta-data android:name="android.app.lib_name" android:value="{{.LibName}}" />
 		<intent-filter>
 			<action android:name="android.intent.action.MAIN" />

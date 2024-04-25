@@ -124,13 +124,17 @@ func onStop(activity *C.ANativeActivity) {
 }
 
 //export onCreate
-func onCreate(activity *C.ANativeActivity) {
-	// Set the initial configuration.
-	//
-	// Note we use unbuffered channels to talk to the activity loop, and
-	// NativeActivity calls these callbacks sequentially, so configuration
-	// will be set before <-windowRedrawNeeded is processed.
-	windowConfigChange <- windowConfigRead(activity)
+func onCreate(activity *C.ANativeActivity, savedState unsafe.Pointer, savedStateSize uint) {
+	if CustomOnCreate != nil {
+		CustomOnCreate(unsafe.Pointer(activity), savedState, savedStateSize)
+	} else {
+		// Set the initial configuration.
+		//
+		// Note we use unbuffered channels to talk to the activity loop, and
+		// NativeActivity calls these callbacks sequentially, so configuration
+		// will be set before <-windowRedrawNeeded is processed.
+		WindowConfigChange <- activity
+	}
 }
 
 //export onDestroy
@@ -143,7 +147,7 @@ func onWindowFocusChanged(activity *C.ANativeActivity, hasFocus C.int) {
 
 //export onNativeWindowCreated
 func onNativeWindowCreated(activity *C.ANativeActivity, window *C.ANativeWindow) {
-	windowCreated <- window
+	WindowCreated <- window
 }
 
 //export onNativeWindowRedrawNeeded
@@ -153,13 +157,13 @@ func onNativeWindowRedrawNeeded(activity *C.ANativeActivity, window *C.ANativeWi
 	// until a complete draw and buffer swap is completed.
 	// This is required by the redraw documentation to
 	// avoid bad draws.
-	windowRedrawNeeded <- window
+	WindowRedrawNeeded <- window
 	<-windowRedrawDone
 }
 
 //export onNativeWindowDestroyed
 func onNativeWindowDestroyed(activity *C.ANativeActivity, window *C.ANativeWindow) {
-	windowDestroyed <- window
+	WindowDestroyed <- window
 }
 
 //export onInputQueueCreated
@@ -244,7 +248,7 @@ func onConfigurationChanged(activity *C.ANativeActivity) {
 	// A rotation event first triggers onConfigurationChanged, then
 	// calls onNativeWindowRedrawNeeded. We extract the orientation
 	// here and save it for the redraw event.
-	windowConfigChange <- windowConfigRead(activity)
+	WindowConfigChange <- activity
 }
 
 //export onLowMemory
@@ -254,11 +258,13 @@ func onLowMemory(activity *C.ANativeActivity) {
 var (
 	inputQueue         = make(chan *C.AInputQueue)
 	inputQueueDone     = make(chan struct{})
-	windowCreated      = make(chan *C.ANativeWindow)
-	windowDestroyed    = make(chan *C.ANativeWindow)
-	windowRedrawNeeded = make(chan *C.ANativeWindow)
+	WindowCreated      = make(chan *C.ANativeWindow)
+	WindowDestroyed    = make(chan *C.ANativeWindow)
+	WindowRedrawNeeded = make(chan *C.ANativeWindow)
+	WindowConfigChange = make(chan *C.ANativeActivity)
 	windowRedrawDone   = make(chan struct{})
-	windowConfigChange = make(chan windowConfig)
+
+	CustomOnCreate func(activity unsafe.Pointer, savedState unsafe.Pointer, savedStateSize uint)
 )
 
 func init() {
@@ -269,14 +275,14 @@ func main(f func(App)) {
 	mainUserFn = f
 	// TODO: merge the runInputQueue and mainUI functions?
 	go func() {
-		if err := mobileinit.RunOnJVM(runInputQueue); err != nil {
+		if err := RunOnJVM(runInputQueue); err != nil {
 			log.Fatalf("app: %v", err)
 		}
 	}()
 	// Preserve this OS thread for:
 	//	1. the attached JNI thread
 	//	2. the GL context
-	if err := mobileinit.RunOnJVM(mainUI); err != nil {
+	if err := RunOnJVM(mainUI); err != nil {
 		log.Fatalf("app: %v", err)
 	}
 }
@@ -296,37 +302,35 @@ func mainUI(vm, jniEnv, ctx uintptr) error {
 		mainUserFn(theApp)
 	}()
 
-	var pixelsPerPt float32
-	var orientation size.Orientation
+	var cfg windowConfig
 
 	for {
 		select {
 		case <-donec:
 			return nil
-		case cfg := <-windowConfigChange:
-			pixelsPerPt = cfg.pixelsPerPt
-			orientation = cfg.orientation
-		case w := <-windowRedrawNeeded:
+		case a := <-WindowConfigChange:
+			cfg = windowConfigRead(a)
+		case w := <-WindowRedrawNeeded:
 			theApp.sendLifecycle(lifecycle.StageFocused)
 			widthPx := int(C.ANativeWindow_getWidth(w))
 			heightPx := int(C.ANativeWindow_getHeight(w))
 			theApp.eventsIn <- size.Event{
 				WidthPx:     widthPx,
 				HeightPx:    heightPx,
-				WidthPt:     geom.Pt(float32(widthPx) / pixelsPerPt),
-				HeightPt:    geom.Pt(float32(heightPx) / pixelsPerPt),
-				PixelsPerPt: pixelsPerPt,
-				Orientation: orientation,
+				WidthPt:     geom.Pt(float32(widthPx) / cfg.pixelsPerPt),
+				HeightPt:    geom.Pt(float32(heightPx) / cfg.pixelsPerPt),
+				PixelsPerPt: cfg.pixelsPerPt,
+				Orientation: cfg.orientation,
 			}
 			theApp.eventsIn <- paint.Event{External: true}
-		case w := <-windowCreated:
+		case w := <-WindowCreated:
 			if C.surface == nil {
 				if errStr := C.createEGLSurface(w); errStr != nil {
 					return fmt.Errorf("%s (%s)", C.GoString(errStr), eglGetError())
 				}
 			}
 			theApp.sendLifecycle(lifecycle.StageAlive)
-		case <-windowDestroyed:
+		case <-WindowDestroyed:
 			theApp.sendLifecycle(lifecycle.StageDead)
 			if C.surface != nil {
 				if errStr := C.destroyEGLSurface(); errStr != nil {

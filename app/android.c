@@ -118,7 +118,7 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void* savedState, size_
 	activity->callbacks->onConfigurationChanged = onConfigurationChanged;
 	activity->callbacks->onLowMemory = onLowMemory;
 
-	onCreate(activity);
+	onCreate(activity, savedState, savedStateSize);
 }
 
 // TODO(crawshaw): Test configuration on more devices.

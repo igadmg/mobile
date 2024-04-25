@@ -16,7 +16,9 @@ license that can be found in the LICENSE file.
 	<application android:label="testapp" android:debuggable="true">
 	<activity android:name="org.golang.app.GoNativeActivity"
 		android:label="testapp"
-		android:configChanges="orientation|keyboardHidden">
+		android:configChanges="orientation|keyboardHidden"
+		android:exported="true"
+		>
 		<meta-data android:name="android.app.lib_name" android:value="testapp" />
 		<intent-filter>
 			<action android:name="android.intent.action.MAIN" />
