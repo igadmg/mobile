@@ -30,6 +30,7 @@ func goAndroidBuild(pkg *packages.Package, bundleID string, targets []targetInfo
 	if err != nil {
 		return nil, err
 	}
+	isAar := strings.HasSuffix(buildO, ".aar")
 	appName := path.Base(pkg.PkgPath)
 	libName := androidPkgName(appName)
 
@@ -38,7 +39,7 @@ func goAndroidBuild(pkg *packages.Package, bundleID string, targets []targetInfo
 	dir := filepath.Dir(pkg.GoFiles[0])
 
 	manifestPath := filepath.Join(dir, "AndroidManifest.xml")
-	manifestData, err := ioutil.ReadFile(manifestPath)
+	manifestData, err := os.ReadFile(manifestPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err
@@ -104,8 +105,8 @@ func goAndroidBuild(pkg *packages.Package, bundleID string, targets []targetInfo
 	if buildO == "" {
 		buildO = androidPkgName(path.Base(pkg.PkgPath)) + ".apk"
 	}
-	if !strings.HasSuffix(buildO, ".apk") {
-		return nil, fmt.Errorf("output file name %q does not end in '.apk'", buildO)
+	if !strings.HasSuffix(buildO, ".apk") && !isAar {
+		return nil, fmt.Errorf("output file name %q does not end in '.apk' or '.aar'", buildO)
 	}
 	var out io.Writer
 	if !buildN {
