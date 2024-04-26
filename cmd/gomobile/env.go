@@ -43,7 +43,7 @@ func platformArchs(platform string) []string {
 	case "macos", "maccatalyst":
 		return []string{"arm64", "amd64"}
 	case "android":
-		return []string{ /*"arm", "arm64", "386",*/ "amd64"}
+		return []string{"arm", "arm64", "386", "amd64"}
 	default:
 		panic(fmt.Sprintf("unexpected platform: %s", platform))
 	}
