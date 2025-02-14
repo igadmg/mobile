@@ -373,8 +373,7 @@ func runInputQueue(vm, jniEnv, ctx uintptr) error {
 
 	var q *C.AInputQueue
 	for {
-		lp := C.ALooper_pollOnce(-1, nil, nil, nil)
-		if lp == C.ALOOPER_POLL_WAKE {
+		if C.ALooper_pollOnce(-1, nil, nil, nil) == C.ALOOPER_POLL_WAKE {
 			select {
 			default:
 			case p := <-pending:
