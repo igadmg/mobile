@@ -24,11 +24,13 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func goAndroidBuild(pkg *packages.Package, targets []targetInfo) (map[string]bool, error) {
+func goAndroidBuild(pkg *packages.Package, bundleID string, targets []targetInfo) (map[string]bool, error) {
+	binres.MinSDK = buildAndroidAPI
 	ndkRoot, err := ndkRoot(targets...)
 	if err != nil {
 		return nil, err
 	}
+	isAar := strings.HasSuffix(buildO, ".aar")
 	appName := path.Base(pkg.PkgPath)
 	libName := androidPkgName(appName)
 
@@ -37,7 +39,7 @@ func goAndroidBuild(pkg *packages.Package, targets []targetInfo) (map[string]boo
 	dir := filepath.Dir(pkg.GoFiles[0])
 
 	manifestPath := filepath.Join(dir, "AndroidManifest.xml")
-	manifestData, err := ioutil.ReadFile(manifestPath)
+	manifestData, err := os.ReadFile(manifestPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err
@@ -47,7 +49,7 @@ func goAndroidBuild(pkg *packages.Package, targets []targetInfo) (map[string]boo
 		buf.WriteString(`<?xml version="1.0" encoding="utf-8"?>`)
 		err := manifestTmpl.Execute(buf, manifestTmplData{
 			// TODO(crawshaw): a better package path.
-			JavaPkgPath: "org.golang.todo." + libName,
+			JavaPkgPath: bundleID,
 			Name:        strings.Title(appName),
 			LibName:     libName,
 		})
@@ -103,8 +105,8 @@ func goAndroidBuild(pkg *packages.Package, targets []targetInfo) (map[string]boo
 	if buildO == "" {
 		buildO = androidPkgName(path.Base(pkg.PkgPath)) + ".apk"
 	}
-	if !strings.HasSuffix(buildO, ".apk") {
-		return nil, fmt.Errorf("output file name %q does not end in '.apk'", buildO)
+	if !strings.HasSuffix(buildO, ".apk") && !isAar {
+		return nil, fmt.Errorf("output file name %q does not end in '.apk' or '.aar'", buildO)
 	}
 	var out io.Writer
 	if !buildN {

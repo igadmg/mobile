@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 // Gendex generates a dex file used by Go apps created with gomobile.
 //
 // The dex is a thin extension of NativeActivity, providing access to
@@ -89,7 +87,7 @@ func gendex() error {
 		return err
 	}
 	cmd = exec.Command(
-		buildTools+"/dx",
+		buildTools+"/d8",
 		"--dex",
 		"--output="+tmpdir+"/classes.dex",
 		tmpdir+"/work",

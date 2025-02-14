@@ -123,14 +123,14 @@ func runBuildImpl(cmd *command) (*packages.Package, error) {
 
 	pkg := pkgs[0]
 
-	if pkg.Name != "main" && buildO != "" {
-		return nil, fmt.Errorf("cannot set -o when building non-main package")
-	}
+	//if pkg.Name != "main" && buildO != "" {
+	//	return nil, fmt.Errorf("cannot set -o when building non-main package")
+	//}
 
 	var nmpkgs map[string]bool
 	switch {
 	case isAndroidPlatform(targets[0].platform):
-		if pkg.Name != "main" {
+		if pkg.Name != "main" && buildO == "" {
 			for _, t := range targets {
 				if err := goBuild(pkg.PkgPath, androidEnv[t.arch]); err != nil {
 					return nil, err
@@ -138,7 +138,10 @@ func runBuildImpl(cmd *command) (*packages.Package, error) {
 			}
 			return pkg, nil
 		}
-		nmpkgs, err = goAndroidBuild(pkg, targets)
+		if buildBundleID == "" {
+			return nil, fmt.Errorf("-target=%s requires -bundleid set", buildTarget)
+		}
+		nmpkgs, err = goAndroidBuild(pkg, buildBundleID, targets)
 		if err != nil {
 			return nil, err
 		}

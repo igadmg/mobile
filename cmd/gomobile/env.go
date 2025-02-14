@@ -140,7 +140,7 @@ func buildEnvInit() (cleanup func(), err error) {
 		tmpdir = "$WORK"
 		cleanupFn = func() {}
 	} else {
-		tmpdir, err = ioutil.TempDir("", "gomobile-work-")
+		tmpdir, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "gomobile-work-")
 		if err != nil {
 			return nil, err
 		}
