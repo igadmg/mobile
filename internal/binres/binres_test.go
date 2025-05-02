@@ -319,7 +319,7 @@ func compareElements(have, want *XML) error {
 				// but following same format of all other like-types appears to work correctly.
 				// BUG(dskinner) this check is brittle as it will skip over any attribute in
 				// bootstrap.xml that has value == MinSDK.
-				if attr.TypedValue.Value == MinSDK {
+				if attr.TypedValue.Value == uint32(MinSDK) {
 					continue
 				}
 				fmt.Fprintf(buf, "attrs don't match\nhave: %+v\nwant: %+v\n", attr, bttr)
