@@ -27,3 +27,4 @@ example/bind/android/build
 example/bind/android/app/build
 
 gomobile.exe
+cmd/gomobile/gomobile
